@@ -1,0 +1,988 @@
+<title>기기 QA 보드</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: filters on top; "순서대로" shows one lesson code at a time with a thumb-reach next bar, "목록" shows every code with inline notes. */
+:root{
+  --bg:#F3F5F8; --surface:#FFFFFF; --fg:#141922; --muted:#5D6774; --line:#DCE1E8;
+  --accent:#2B5CE6; --accent-ink:#FFFFFF; --accent-soft:#E7EDFD;
+  --bad:#C9362E; --bad-bg:#FCEBEA; --ok:#1C7F53; --ok-bg:#E4F3EA; --hint:#8A6A12;
+  --ko:#C2410C; --ma:#1D4ED8; --en:#047857; --nu:#7C3AED;
+  --font-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --font-code:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1318; --surface:#171C24; --fg:#E6EAF0; --muted:#98A2AE; --line:#2A313B;
+  --accent:#7398FF; --accent-ink:#0B1020; --accent-soft:#1D2742;
+  --bad:#FF7D73; --bad-bg:#3A1D1B; --ok:#5ED39C; --ok-bg:#16301F; --hint:#E2C065;
+  --ko:#FB923C; --ma:#93B4FF; --en:#5EDFB0; --nu:#C5A6FF; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0F1318; --surface:#171C24; --fg:#E6EAF0; --muted:#98A2AE; --line:#2A313B;
+  --accent:#7398FF; --accent-ink:#0B1020; --accent-soft:#1D2742;
+  --bad:#FF7D73; --bad-bg:#3A1D1B; --ok:#5ED39C; --ok-bg:#16301F; --hint:#E2C065;
+  --ko:#FB923C; --ma:#93B4FF; --en:#5EDFB0; --nu:#C5A6FF; color-scheme:dark;
+}
+*{box-sizing:border-box}
+/* hidden 속성은 display:flex 같은 규칙보다 늘 이기게 (추천 문구 상자·돌아가기 버튼이 안 닫히던 원인) */
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.5;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.seqmode .top{position:static}
+.top .wrap{display:flex;flex-direction:column;gap:10px;padding-block:12px}
+.titlebar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+h1{font-size:18px;font-weight:700;margin:0;letter-spacing:-.01em}
+.summary{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.summary button{border:0;background:var(--bad-bg);color:var(--bad);border-radius:999px;padding:3px 10px;font-weight:700;cursor:pointer}
+.summary button[disabled]{background:transparent;color:var(--muted);font-weight:500;cursor:default;padding-inline:0}
+#q{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-family:var(--font-code);font-size:15px;text-transform:uppercase}
+#q::placeholder{font-family:var(--font-body);text-transform:none;color:var(--muted)}
+.seg{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px}
+.seg button{flex:1;border:0;background:transparent;border-radius:7px;padding:7px 4px;font-size:14px;cursor:pointer;color:var(--muted);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.viewseg{flex:0 0 auto}
+/* 검수 기기: 지금 어느 기기 기록으로 쌓이는지 늘 보이게 */
+.devpick{display:flex;align-items:center;gap:6px;font-size:13px}
+.devpick .dplabel{color:var(--muted);font-weight:700;margin-right:2px}
+.devpick button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 14px;font-size:14px;cursor:pointer;color:var(--muted);min-height:36px}
+.devpick button[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg);font-weight:700}
+.devstat{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.devstat span{font-size:12.5px;padding:2px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.devstat span.cur{border-color:var(--fg);color:var(--fg);font-weight:700}
+.devstat span.ok{background:var(--ok-bg);border-color:transparent;color:var(--ok)}
+.devstat span.bad{background:var(--bad-bg);border-color:transparent;color:var(--bad)}
+.devstat span.same{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+.devseg button[aria-pressed="true"]{background:var(--fg);color:var(--surface)}
+.genmode .devseg{display:none}
+.nowdev{font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:1px 7px;margin-left:4px;vertical-align:1px}
+.viewseg button{padding-inline:12px}
+.row2{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap}
+.row2 select{flex:1 1 130px;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:14px}
+.row2 .seg{flex:1 1 150px}
+.toggle{display:flex;align-items:center;gap:6px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:14px;cursor:pointer;white-space:nowrap}
+.toggle input{width:17px;height:17px;accent-color:var(--bad);margin:0}
+.searching .filters{opacity:.4;pointer-events:none}
+
+.banner{margin:12px auto 0;max-width:720px;padding:10px 14px;border-radius:10px;background:var(--accent-soft);color:var(--fg);font-size:13.5px}
+.banner-wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+main{padding-block:8px 120px}
+
+/* list view */
+.group{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:20px 0 6px;font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.02em}
+.group .gcount{font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.gtoggle{display:flex;align-items:center;gap:8px;border:0;background:transparent;padding:6px 0;font:inherit;color:inherit;font-weight:700;cursor:pointer;text-align:left;min-height:36px}
+.gtoggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.chev{width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid currentColor;flex:0 0 auto}
+.grp.closed .chev{transform:rotate(-90deg)}
+.grp .group{margin-bottom:4px}
+.gbody{display:grid;grid-template-rows:1fr}
+.grp.closed .gbody{grid-template-rows:0fr}
+.gbody-in{overflow:hidden;min-height:0}
+.grp.closed .gbody-in{visibility:hidden}
+.listtools{display:flex;justify-content:flex-end;gap:16px;margin-top:10px}
+@media (prefers-reduced-motion:no-preference){
+  .gbody{transition:grid-template-rows .3s ease}
+  .gbody-in{transition:visibility 0s linear .3s}
+  .grp:not(.closed) .gbody-in{transition:visibility 0s}
+  .chev{transition:transform .3s ease}
+}
+.group .gcount.has{color:var(--bad);font-weight:700}
+.list{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.item{border-top:1px solid var(--line)}
+.item:first-child{border-top:0}
+.item.issue{background:linear-gradient(90deg,var(--bad) 0 3px,transparent 3px)}
+.item.done{background:linear-gradient(90deg,var(--ok) 0 3px,transparent 3px)}
+.item.here .code::after{content:"  ← 현재";font-family:var(--font-body);font-size:12px;color:var(--accent);font-weight:700}
+.rowbtn{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;align-items:center;width:100%;text-align:left;border:0;background:transparent;padding:10px 14px 10px 16px;cursor:pointer;min-height:48px}
+.rowbtn:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.line1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sub{font-size:11.5px;font-weight:700;letter-spacing:.04em}
+.sub.KO{color:var(--ko)}.sub.MA{color:var(--ma)}.sub.EN{color:var(--en)}.sub.NU{color:var(--nu)}
+.code{font-family:var(--font-code);font-weight:600;font-size:15px;letter-spacing:.01em}
+.ws{font-size:12.5px;color:var(--muted)}
+.rowmain{display:flex;flex-direction:column;gap:2px;min-width:0}
+.tags{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:min(46vw,260px)}
+.tag{font-size:11.5px;padding:1px 7px;border-radius:999px;background:var(--bad-bg);color:var(--bad);font-weight:700}
+.tag.ok{background:var(--ok-bg);color:var(--ok)}
+.preview{font-size:13.5px;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.memofull.other{color:var(--muted);font-size:13px}
+.memofull{display:block;font-size:14px;line-height:1.55;color:var(--fg);white-space:pre-wrap;overflow-wrap:anywhere;margin-top:4px}
+/* 프레임 정도 칩: 경미 → 진행 불가로 갈수록 진하게 */
+.lv{display:inline-block;font-size:11.5px;font-weight:700;line-height:1.5;padding:0 7px;border-radius:999px;margin-left:4px;vertical-align:1px;white-space:nowrap}
+.lv1{background:color-mix(in srgb,var(--muted) 14%,transparent);color:var(--muted)}
+.lv2{background:color-mix(in srgb,var(--hint) 16%,transparent);color:var(--hint)}
+.lv3{background:var(--bad-bg);color:var(--bad)}
+.lv4{background:var(--bad);color:var(--surface)}
+.memodev{display:inline-block;font-size:11.5px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 7px;margin-right:6px;vertical-align:1px;white-space:nowrap}
+.preview.hint{color:var(--hint);font-size:12.5px}
+.preview.same{color:var(--accent);font-size:12.5px}
+.goto{color:var(--accent);text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:4px 0}
+button.goto{border:0;background:transparent;font:inherit;font-family:var(--font-code);font-weight:600;padding:0}
+button.goto.okbtn{font-family:var(--font-body);font-weight:500;color:var(--ok);display:inline-block;margin-top:4px}
+.item.flash{box-shadow:inset 0 0 0 2px var(--accent)}
+@media (prefers-reduced-motion:no-preference){.item{transition:box-shadow .4s ease}}
+.mod{font-family:var(--font-code);font-size:12px;color:var(--muted)}
+.tag.same{background:var(--accent-soft);color:var(--accent)}
+.tag.direct{background:var(--accent);color:var(--accent-ink)}
+.tag.hw{background:transparent;border:1px solid var(--nu);color:var(--nu);padding:1px 5px;display:inline-flex;align-items:center;gap:2px;vertical-align:middle}
+.tag.hw svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.item.okay{background:linear-gradient(90deg,var(--ok) 0 3px,transparent 3px)}
+.item.same{background:linear-gradient(90deg,var(--accent) 0 3px,transparent 3px)}
+.sameline{font-size:13.5px;color:var(--accent);background:var(--accent-soft);padding:9px 12px;border-radius:10px}
+.saved.okc{color:var(--ok)}
+
+/* note form (shared) */
+.editor{display:flex;flex-direction:column;gap:12px;padding:4px 16px 16px}
+.devblock{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.devblock.has{border-color:var(--bad)}
+.devhead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.devname{font-size:14px;font-weight:700}
+.linkbtn{border:0;background:transparent;color:var(--accent);font-size:13px;font-weight:500;cursor:pointer;padding:4px 0}
+.devtools{display:flex;gap:14px;align-items:center}
+/* 유형 칩을 누르면 칩 밑에 그 유형 문구가 뜸 */
+.chipsug{display:flex;flex-direction:column;gap:6px;padding:8px;border:1px dashed var(--line);border-radius:10px;background:var(--bg)}
+.sgchips{display:flex;flex-wrap:wrap;gap:6px}
+.sug{border:1px solid transparent;background:var(--accent-soft);color:var(--fg);border-radius:8px;padding:6px 10px;font-size:13.5px;cursor:pointer;text-align:left;min-height:34px}
+.sug:active{border-color:var(--accent)}
+.sug:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.lvrow{align-items:center}
+.lvlab{font-size:12.5px;color:var(--muted);margin-right:2px}
+.sug.lvb{min-height:32px;padding:4px 14px;font-weight:700;font-size:13px;border:2px solid transparent}
+.sug.lvb[aria-pressed="true"]{border-color:currentColor}
+.sug.lvb.lv1{background:color-mix(in srgb,var(--muted) 14%,transparent);color:var(--muted)}
+.sug.lvb.lv2{background:color-mix(in srgb,var(--hint) 16%,transparent);color:var(--hint)}
+.sug.lvb.lv3{background:var(--bad-bg);color:var(--bad)}
+.sug.lvb.lv4{background:var(--bad);color:var(--surface)}
+.sug.lvb.lv4[aria-pressed="true"]{border-color:var(--fg)}
+.sgchips.sfx .sug{background:transparent;border-color:var(--line);color:var(--muted);font-size:12.5px;min-height:30px;padding:4px 9px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:14px;cursor:pointer;min-height:36px}
+.chip[aria-pressed="true"]{background:var(--bad);border-color:var(--bad);color:var(--surface);font-weight:700}
+textarea{width:100%;min-height:60px;resize:none;overflow:hidden;field-sizing:content;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:15px;line-height:1.5}
+textarea:focus,#q:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+.check{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;width:max-content}
+.check input{width:18px;height:18px;accent-color:var(--ok);margin:0}
+.hintline{font-size:12.5px;color:var(--hint)}
+.actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 16px;font-size:14px;cursor:pointer;min-height:42px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+.btn.danger{color:var(--bad)}
+.btn.danger.armed{background:var(--bad);border-color:var(--bad);color:var(--surface);font-weight:700}
+.btn:disabled{opacity:.5;cursor:default}
+.btn:focus-visible,.chip:focus-visible,.seg button:focus-visible,.linkbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* sequential view */
+.seq{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.seqhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.bar{height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.codecard{display:flex;flex-direction:column;gap:2px}
+.bigcode{font-family:var(--font-code);font-weight:600;font-size:clamp(26px,8vw,36px);letter-spacing:.01em;line-height:1.15;overflow-wrap:anywhere}
+.bigcode .tag.hw{margin-left:10px;font-size:13px;vertical-align:.35em}
+.bigcode .tag.hw svg{width:18px;height:18px}
+.codemeta{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+.saved{font-size:12.5px;font-weight:700;color:var(--bad)}
+.seq .editor{padding:0}
+.seqnav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--bg);border-top:1px solid var(--line)}
+.seqnav .wrap{display:flex;gap:8px;padding-block:10px calc(10px + env(safe-area-inset-bottom,0px))}
+.seqnav .btn{min-height:52px;font-size:16px}
+.seqnav .prev{flex:0 0 auto}
+.seqnav .next{flex:1}
+.next.save{background:var(--bad);border-color:var(--bad);color:var(--surface)}
+.done-card{padding:28px 16px;text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-top:14px}
+.done-card p{margin:0}
+
+/* general (공통) view */
+.genmode .filters,.genmode #q{display:none}
+.gform{display:flex;flex-direction:column;gap:12px;margin-top:14px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.gtitle{font-size:16px;margin:0;font-weight:700}
+.gintro{margin:0;font-size:13px;color:var(--muted)}
+.field{display:flex;flex-direction:column;gap:6px}
+.flabel{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.04em}
+.gform textarea,#gscope{background:var(--bg)}
+#gscope{padding:9px 11px;border:1px solid var(--line);border-radius:10px;font-size:15px;width:100%}
+#gscope:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+.chip.dev[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--surface)}
+.glist{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.gcard{padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.gcard.done{border-left-color:var(--ok)}
+.gmeta{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.gscope{font-size:13px;color:var(--muted)}
+.gmemo{white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+.gdate{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.gcard .actions{justify-content:flex-start}
+.gcard .btn{min-height:36px;padding:6px 12px;font-size:13px}
+.tag.dev{background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:500}
+
+.empty{padding:40px 8px;text-align:center;color:var(--muted)}
+/* 다른 학습코드로 이동했을 때 원래 자리로 돌아가는 버튼: 왼쪽 아래 (넓은 화면은 왼쪽 빈 공간 위) */
+.backbtn{position:fixed;z-index:9;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  display:flex;align-items:center;gap:6px;max-width:calc(100% - 32px);min-height:44px;padding:8px 16px;border-radius:999px;
+  border:1px solid var(--accent);background:var(--surface);color:var(--accent);font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.14)}
+.backbtn .bcode{font-family:var(--font-code);font-weight:600}
+#app.seqmode ~ .backbtn{bottom:calc(88px + env(safe-area-inset-bottom,0px))}
+@media (min-width:1180px){.backbtn,#app.seqmode ~ .backbtn{left:auto;right:calc(50% + 376px);bottom:auto;top:calc(16px + env(safe-area-inset-top,0px))}}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(88px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:9px 18px;border-radius:999px;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .2s}}
+</style>
+
+<div id="app">
+<header class="top" id="top">
+  <div class="wrap">
+    <div class="titlebar">
+      <h1>기기 QA 보드</h1>
+      <div class="seg viewseg" id="view" role="group" aria-label="보기">
+        <button type="button" data-v="seq">순서대로</button><button type="button" data-v="list">목록</button><button type="button" data-v="general">공통</button>
+      </div>
+    </div>
+    <div class="devpick" id="devpick" role="group" aria-label="검수 기기"><span class="dplabel">검수 기기</span><button type="button" data-d="tablet">태블릿</button><button type="button" data-d="board">전자칠판</button></div>
+    <div class="summary" id="summary">불러오는 중</div>
+    <input id="q" type="search" inputmode="text" autocomplete="off" placeholder="학습코드 검색 (예: M02W4 · 카메라 · 마이크 · 직접)">
+    <div class="filters">
+      <div class="seg" id="subj" role="group" aria-label="과목"></div>
+    </div>
+    <div class="row2 filters">
+      <select id="month" aria-label="호"></select>
+      <div class="seg" id="level" role="group" aria-label="레벨"></div>
+      <label class="toggle"><input type="checkbox" id="only">문제만</label>
+    </div>
+  </div>
+</header>
+<div class="banner-wrap"><div class="banner" id="banner" hidden></div></div>
+<main class="wrap" id="list" aria-live="polite"></main>
+<nav class="seqnav" id="seqnav" hidden>
+  <div class="wrap">
+    <button type="button" class="btn prev" id="prevBtn">◀ 이전</button>
+    <button type="button" class="btn primary next" id="nextBtn">이상 없음 · 다음 ▶</button>
+  </div>
+</nav>
+</div>
+<button type="button" class="backbtn" id="backBtn" hidden></button>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+  const SUBJ=[['KO','한글'],['MA','수학'],['EN','영어']];
+  const SUBJ_NAME=Object.fromEntries(SUBJ);
+  // 호(월) 코드. 학습코드의 M01 이 1호
+  const MONTHS=['01','02','03','04','05','06'];
+  const SHOWN=MONTHS;
+  const hoLabel=m=>(+m)+'호(M'+m+')';
+  // 태블릿을 먼저 검수하고 전자칠판은 나중에 (저장 키 board/tablet은 그대로)
+  const DEVS=[['tablet','태블릿','태블릿'],['board','전자칠판','칠판']];
+  // 예전 기록의 렉/랙은 프레임으로 읽음
+  const TYPES=['프레임','내레이션','사운드','터치','화면','카메라','마이크','기타'];
+  const HW_TYPE={'카메라':'C','마이크':'M'}; // 이 두 칩은 그 장치를 쓰는 학습코드에서만 보임
+  // 소스를 미리 훑어 문제가 날 것 같은 코드에 붙이는 예상 메모 (예시)
+  const HINTS={
+    KOL1M02W4S2:'예상: 프레임·화면 (아주 큰 원본 이미지 5장)',
+    MAL1M03W1S1:'예상: 프레임 (용량이 큰 동영상)'
+  };
+  ['ENL1M05W1S2','ENL2M05W1S2','ENL3M05W1S2','MAL1M05W3S1']
+    .forEach(c=>HINTS[c]='예상: 사운드 (소리 파일 경로가 잘못 들어감)');
+
+  // 학습코드 → 사용하는 모듈 (예시 데이터). 같은 주·차시 자리는 호가 바뀌어도 같은 모듈을 다시 쓰는 일이 많아 그 모양을 흉내 냄
+  // "" = 모듈 없이 자체 코드
+  const MOD_POOL={
+    KO:['KO/LetterTrace','KO/SoundMatch','KO/WordCard','KO/StoryBook','KO/SpeakWord','KO/DragSort','KO/SyllableBlock'],
+    MA:['MA/CountTouch','MA/ShapeSort','MA/NumberLine','MA/PatternNext','MA/PhotoCount','MA/CompareSize'],
+    EN:['EN/WordSpark','EN/ExploreStory','EN/ExploreQuiz','EN/CreateSong','EN/ShowcaseSpeak','EN/SentenceBuild','EN/PhonicsPop']
+  };
+  // 5호부터 새로 나온 모듈 (앞 호에 없어서 같은 모듈로 넘길 수 없음)
+  const MOD_NEW={KO:['KO/PoemReader','KO/RhymeTime'],MA:['MA/ClockRead','MA/MoneyShop'],EN:['EN/RolePlay','EN/PictureDict']};
+  const MOD={};
+  SHOWN.forEach(m=>SUBJ.forEach(([s])=>{
+    for(let l=1;l<=3;l++)for(let w=1;w<=4;w++)for(let st=1;st<=3;st++){
+      const k=(w-1)*3+(st-1),pool=MOD_POOL[s];
+      MOD[s+'L'+l+'M'+m+'W'+w+'S'+st]=k===0?'VideoPlayer/VideoPlayActivity':(+m===4&&k===7)?'':
+        (+m>=5&&k%4===2)?MOD_NEW[s][(k+l)%2]+(+m===6?'2':''):pool[(k+l)%pool.length];
+    }
+  }));
+  // 학습할 때 카메라(C)·마이크(M)를 켜는 학습코드 — 모듈로 정해짐 (예시 규칙)
+  const MOD_DEVICE={'KO/SpeakWord':'M','MA/PhotoCount':'C','EN/ShowcaseSpeak':'CM'};
+  const DEVICE=Object.fromEntries(Object.entries(MOD).filter(([,k])=>MOD_DEVICE[k]).map(([c,k])=>[c,MOD_DEVICE[k]]));
+  const modIndex={};
+  // 같은 모듈 묶음도 보이는 호끼리만 (숨긴 호 코드를 "여기서 확인"으로 가리키지 않게)
+  Object.entries(MOD).forEach(([c,m])=>{if(m&&m!=='-'&&SHOWN.includes(c.slice(5,7)))(modIndex[m]=modIndex[m]||[]).push(c);});
+  const modLabel=k=>k===undefined?'':!k?'자체 코드':k==='-'?'모듈 정보 없음':k.split('+')[0].split('/').pop();
+  const CODES=[];
+  SHOWN.forEach((m,mi)=>SUBJ.forEach(([s],si)=>{
+    for(let l=1;l<=3;l++)for(let w=1;w<=4;w++)for(let st=1;st<=3;st++)
+      CODES.push({code:s+'L'+l+'M'+m+'W'+w+'S'+st,s,si,l,m,mi,w,st});
+  }));
+  const CODE_POS=Object.fromEntries(CODES.map((c,i)=>[c.code,i]));
+  const BY_CODE=Object.fromEntries(CODES.map(c=>[c.code,c]));
+
+  const $=id=>document.getElementById(id);
+  const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const ls={get(k,f){try{const v=localStorage.getItem(k);return v==null?f:JSON.parse(v);}catch(e){return f;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
+
+  let state=Object.assign({view:'seq',dev:'tablet',subj:'ALL',month:'01',level:'ALL',only:false},ls.get('qa.filters',{}),{q:''});
+  if(state.month!=='ALL'&&!SHOWN.includes(state.month))state.month='01';
+  if(state.subj!=='ALL'&&!SUBJ.some(([s])=>s===state.subj))state.subj='ALL';
+  // 순서대로 위치는 기기별로 따로 기억 (태블릿은 예전 키 그대로)
+  const curKey=()=>state.dev==='board'?'qa.cursor.board':'qa.cursor';
+  let cursor=ls.get(curKey(),'KOL1M01W1S1');
+  const keepFilters=()=>ls.set('qa.filters',{view:state.view,dev:state.dev,subj:state.subj,month:state.month,level:state.level,only:state.only});
+
+  let issues={};      // code -> {board:{types,memo}, tablet:{types,memo}, resolved, updatedAt}
+  let mode='loading'; // 'loading' | 'db' | 'local' | 'readonly'
+  let col=null;
+  let openCode=null, draft=null, armedClear=false, pendingRender=false, saving=false, atEnd=false;
+  let generals={}, gcol=null, gdraft=null, gArmed=null, gsaving=false; // 공통 현상
+  const collapsed=new Set(ls.get('qa.collapsed',[])||[]); // 목록에서 접어 둔 묶음(호·과목·레벨)
+  function setCollapsed(sec,close){
+    sec.classList.toggle('closed',close);
+    const b=sec.querySelector('.gtoggle');if(b)b.setAttribute('aria-expanded',!close);
+    close?collapsed.add(sec.dataset.k):collapsed.delete(sec.dataset.k);
+  }
+  // 확인 기록(이상 없음으로 넘긴 것)은 검수 기기별로 따로: checked_tablet / checked_board
+  let checked={tablet:{},board:{}}, ccols=null;
+  // 지금 검수하는 기기 (위 「검수 기기」에서 고름, 이 기기 브라우저가 기억). 이상 없음·같은 모듈은 기기별로 따로 쌓임
+  const curDev=()=>state.dev==='board'?'board':'tablet';
+  const devName=k=>k==='board'?'전자칠판':'태블릿';
+  const issueOn=(c,dev)=>!!issues[c]&&devHas(norm(issues[c]),dev);
+  const isChecked=(c,dev=curDev())=>!!checked[dev][c]||issueOn(c,dev);
+  // 이 기기에서 아직 안 봤지만 같은 모듈을 쓰는 다른 코드를 이 기기에서 확인했으면 그 코드를 돌려줌
+  function sameModuleRef(code,dev=curDev()){
+    if(isChecked(code,dev))return null;
+    const m=MOD[code];if(!m||m==='-')return null;
+    const list=modIndex[m]||[];
+    return list.find(c=>c!==code&&issueOn(c,dev))||list.find(c=>c!==code&&checked[dev][c])||null;
+  }
+  // 같은 모듈을 앞(순서대로 기준)에서 이미 봤는데도 이 코드를 따로 검수했으면 그 앞 코드를 돌려줌
+  function directRef(code,dev=curDev()){
+    if(!isChecked(code,dev))return null;
+    const m=MOD[code];if(!m||m==='-')return null;
+    const p=CODE_POS[code];
+    return (modIndex[m]||[]).filter(c=>c!==code&&CODE_POS[c]<p&&isChecked(c,dev)).sort((a,b)=>CODE_POS[a]-CODE_POS[b])[0]||null;
+  }
+  // 카메라·마이크는 글자 대신 아이콘 한 칸 (글이 많아 보여서). 이름은 title/aria-label 로
+  const ICON_CAM='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+  const ICON_MIC='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg>';
+  const hwPill=d=>{if(!d)return '';const n=(d.includes('C')?'카메라':'')+(d.includes('C')&&d.includes('M')?'·':'')+(d.includes('M')?'마이크':'');
+    return '<span class="tag hw" title="'+n+' 사용" aria-label="'+n+' 사용" role="img">'+(d.includes('C')?ICON_CAM:'')+(d.includes('M')?ICON_MIC:'')+'</span>';};
+  const hwTags=code=>hwPill(DEVICE[code]||'');
+  async function markChecked(code,dev=curDev()){
+    if(isChecked(code,dev)||mode==='readonly'||mode==='loading')return;
+    const body={code,at:new Date().toISOString()};
+    checked[dev][code]=body;
+    if(mode==='db'){try{await ccols[dev].doc(code).set(body);}catch(e){}}
+    else ls.set('qa.checked2',checked);
+  }
+  // 지금 검수하는 기기 칸이 먼저 오도록
+  const devOrder=()=>curDev()==='board'?[DEVS[1],DEVS[0]]:DEVS;
+  let hcol=null; // 덮어쓰거나 지우기 전의 기록 백업
+  async function backup(kind,key,prev){
+    if(!hcol||!prev)return;
+    try{await hcol.doc(kind+'-'+key+'-'+Date.now().toString(36)).set({kind,key,data:prev,savedAt:new Date().toISOString()});}catch(e){}
+  }
+
+  /* ---------- note model ---------- */
+  const fixTypes=a=>[...new Set(a.map(t=>t==='렉'||t==='랙'?'프레임':t))];
+  function blank(){return {board:{types:[],memo:''},tablet:{types:[],memo:''},resolved:false};}
+  function norm(it){
+    const d=blank();if(!it)return d;
+    DEVS.forEach(([k])=>{const v=it[k]||{};d[k]={types:Array.isArray(v.types)?fixTypes(v.types):[],memo:typeof v.memo==='string'?v.memo:''};});
+    d.resolved=!!it.resolved;return d;
+  }
+  const isEmpty=d=>DEVS.every(([k])=>!d[k].types.length&&!d[k].memo.trim());
+  const devHas=(d,k)=>d[k].types.length>0||!!d[k].memo.trim();
+  const sig=d=>JSON.stringify(DEVS.map(([k])=>[d[k].types.slice().sort(),d[k].memo.trim()]).concat([!!d.resolved]));
+  // base = 입력칸을 연 시점의 저장 내용. 사람이 실제로 고친 경우에만 dirty.
+  // (예전에는 다른 기기의 저장이 늦게 도착하면 빈 입력칸이 "지운 것"으로 판단되어 기록이 삭제됐음)
+  function ensureDraft(code){if(!draft||draft.code!==code){draft=Object.assign(norm(issues[code]),{code});draft.base=sig(draft);armedClear=false;}}
+  const dirty=()=>!!draft&&sig(draft)!==draft.base;
+
+  /* ---------- filters ---------- */
+  function buildFilters(){
+    $('subj').innerHTML=[['ALL','전체']].concat(SUBJ).map(([k,n])=>'<button type="button" data-v="'+k+'">'+n+'</button>').join('');
+    $('level').innerHTML=['ALL','1','2','3'].map(v=>'<button type="button" data-v="'+v+'">'+(v==='ALL'?'전체':'L'+v)+'</button>').join('');
+    $('month').innerHTML='<option value="ALL">전체 호</option>'+SHOWN.map(m=>'<option value="'+m+'">'+hoLabel(m)+'</option>').join('');
+    syncFilters();
+    $('view').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;switchView(b.dataset.v);});
+    $('subj').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;state.subj=b.dataset.v;changed();});
+    $('level').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;state.level=b.dataset.v;changed();});
+    $('month').addEventListener('change',e=>{state.month=e.target.value;changed();});
+    $('only').addEventListener('change',e=>{state.only=e.target.checked;changed();});
+    $('q').addEventListener('input',e=>{state.q=e.target.value;openCode=null;atEnd=false;syncFilters();render();});
+    $('devpick').addEventListener('click',async e=>{
+      const b=e.target.closest('button');if(!b||b.dataset.d===curDev())return;
+      if(dirty()&&!(await save(draft.code)))return;
+      state.dev=b.dataset.d;cursor=ls.get(curKey(),'KOL1M01W1S1');
+      openCode=null;draft=null;atEnd=false;keepFilters();syncFilters();render();window.scrollTo(0,0);
+      toast('지금부터 '+devName(curDev())+' 검수로 기록합니다');
+    });
+  }
+  function syncFilters(){
+    [...$('view').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===state.view));
+    [...$('subj').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===state.subj));
+    [...$('level').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===state.level));
+    [...$('devpick').querySelectorAll('button')].forEach(b=>b.setAttribute('aria-pressed',b.dataset.d===curDev()));
+    $('month').value=state.month;$('only').checked=state.only;
+    $('top').classList.toggle('searching',!!state.q.trim());
+    $('app').classList.toggle('seqmode',state.view==='seq');
+    $('app').classList.toggle('genmode',state.view==='general');
+  }
+  function changed(){openCode=null;atEnd=false;keepFilters();syncFilters();render();window.scrollTo(0,0);}
+  async function switchView(v){
+    if(v===state.view)return;
+    if(dirty()&&!(await save(draft.code)))return;
+    // 목록에서 마지막으로 저장한 코드(cursor)가 순서대로 범위 밖이면 그 코드의 호·과목·레벨로 맞춰서 이어감
+    if(v==='seq'&&!visible().some(c=>c.code===cursor)&&BY_CODE[cursor]){
+      const c=BY_CODE[cursor];Object.assign(state,{month:c.m,subj:c.s,level:String(c.l),only:false,q:''});$('q').value='';
+    }
+    state.view=v;openCode=null;draft=null;atEnd=false;keepFilters();syncFilters();render();
+    backStack.length=0;updateBack(); // 탭을 직접 바꾸면 돌아가기 기록은 버림
+    if(v==='list'){const el=document.querySelector('.item[data-code="'+cursor+'"]');if(el)el.scrollIntoView({block:'center'});}
+    else window.scrollTo(0,0);
+  }
+
+  function visible(){
+    const q=state.q.trim().toUpperCase().replace(/\s+/g,'');
+    return CODES.filter(c=>{
+      // 검색칸에 카메라·마이크·직접 이라고 쓰면 그 표시가 붙은 코드만
+      if(q==='카메라'||q==='마이크'){if(!(DEVICE[c.code]||'').includes(q==='카메라'?'C':'M'))return false;}
+      else if(q==='직접'||q==='직접검수'){if(!directRef(c.code))return false;}
+      else if(q){if(!c.code.includes(q))return false;}
+      else{
+        if(state.month!=='ALL'&&c.m!==state.month)return false;
+        if(state.subj!=='ALL'&&c.s!==state.subj)return false;
+        if(state.level!=='ALL'&&String(c.l)!==state.level)return false;
+      }
+      if(state.only&&!issues[c.code])return false;
+      return true;
+    });
+  }
+
+  /* ---------- render ---------- */
+  function summary(){
+    const all=Object.keys(issues).filter(c=>BY_CODE[c]).map(c=>issues[c]);const open=all.filter(i=>!i.resolved).length;const done=all.length-open;
+    const s=$('summary');
+    if(mode==='loading'){s.textContent='불러오는 중';return;}
+    const gOpen=Object.values(generals).filter(g=>!g.resolved).length;
+    s.innerHTML='<button type="button" id="showAll"'+(all.length?'':' disabled')+'>'+(all.length?'문제 '+open+'건'+(done?' · 해결 '+done:'')+' 모아보기':'기록된 문제 없음')+'</button>'+
+      (gOpen?'<button type="button" id="showGen">공통 '+gOpen+'건</button>':'')+
+      '<span>'+devName(curDev())+' · 이상 없음 '+CODES.filter(c=>checked[curDev()][c.code]&&!issueOn(c.code,curDev())).length+' · 같은 모듈 넘어감 '+CODES.filter(c=>sameModuleRef(c.code)).length+' / '+CODES.length.toLocaleString()+'</span>';
+    const g=$('showGen');if(g)g.onclick=()=>switchView('general');
+    const b=$('showAll');
+    if(b&&all.length)b.onclick=async()=>{
+      if(dirty()&&!(await save(draft.code)))return;
+      state=Object.assign(state,{view:'list',subj:'ALL',month:'ALL',level:'ALL',only:true,q:''});$('q').value='';draft=null;changed();
+    };
+  }
+
+  // 목록 태그는 지금 검수하는 기기 것만 (다른 기기 기록은 메모 줄에 흐리게 — 한 줄에 섞이면 헷갈려서)
+  function tagsHTML(it,dev=curDev()){
+    if(!it)return '';
+    const d=norm(it);if(!devHas(d,dev))return '';
+    return (d.resolved?'<span class="tag ok">해결</span>':'')+'<span class="tag'+(d.resolved?' ok':'')+'">'+esc(fixTypes(d[dev].types).join('·')||'메모')+'</span>';
+  }
+  // 유형 칩을 누르면 그 칩 밑에 뜨는 문구. 누르면 메모에 한 줄로 들어감. "( )"로 시작하는 덧붙이기는 마지막 줄 끝에 붙음
+  const PHRASES={
+    // 프레임은 상황만 고르고 정도(경미/보통/심각/진행 불가)는 밑의 정도 칩으로
+    '프레임':['활동 중 프레임 감소','활동 진입 시 프레임 감소','Lottie 재생 중 프레임 감소','영상 재생 중 프레임 감소',
+      '아웃트로 재생 중 프레임 감소','화면 전환 중 프레임 감소','드래그 중 프레임 감소',
+      '가이드 영상 종료 후 잠시 멈춤','가이드 영상 종료 후 약 5초 멈춤','가이드 영상 종료 후 5초 이상 멈춤'],
+    '내레이션':['내레이션이 나오지 않음','내레이션이 중간에 끊김','내레이션이 늦게 나옴'],
+    '사운드':['효과음이 나오지 않음','BGM이 나오지 않음','소리가 겹쳐서 나옴','소리가 작게 들림'],
+    '터치':['드래그가 매끄럽지 않음','터치를 매우 천천히 해야 진행됨','터치 인식이 잘 안 됨','프레임 감소로 터치 인식이 떨어짐'],
+    '화면':['화면이 검게 나옴','화면이 잘려서 보임'],
+    '카메라':['카메라 화면이 나오지 않음','카메라 화면이 늦게 켜짐','카메라 권한 요청이 뜨지 않음','촬영이 되지 않음'],
+    // 음성 인식은 서버 모드와 구글 모드가 따로 있음
+    '마이크':['서버 음성 인식 모드에서 인식이 잘 안 됨','구글 음성 인식 모드에서 인식이 잘 안 됨','음성 인식이 늦게 됨',
+      '녹음이 되지 않음','녹음한 소리가 재생되지 않음','마이크 권한 요청이 뜨지 않음'],
+    '기타':['해당 활동 진입 시 어플 강제 종료','진입 로딩이 오래 걸림']
+  };
+  const SUFFIX=['(활동 진행 어려움)','(활동 진행 불가)','(코드 문제 추정)'];
+  const chipSug={};let chipSugCode=null; // 기기 칸마다 지금 문구를 띄운 유형 (코드가 바뀌면 비움)
+  function chipSugHTML(dev){
+    const t=chipSug[dev];if(!t||!PHRASES[t])return '';
+    const btn=(x,type)=>'<button type="button" class="sug" data-sdev="'+dev+'" data-stype="'+type+'" data-text="'+esc(x)+'">'+esc(x)+'</button>';
+    if(t!=='프레임')return '<div class="sgchips">'+PHRASES[t].map(x=>btn(x,t)).join('')+'</div><div class="sgchips sfx">'+SUFFIX.map(x=>btn(x,'')).join('')+'</div>';
+    // 프레임: 상황 문구 + 정도 칩 (정도는 마지막 프레임 줄에 붙음, 진행 어려움·불가 덧붙이기는 정도 칩이 대신함)
+    const fl=lastFrameLine(dev),cur=fl?fl.lv:-1;
+    return '<div class="sgchips">'+PHRASES[t].map(x=>btn(x,t)).join('')+'</div>'+
+      '<div class="sgchips lvrow"><span class="lvlab">정도</span>'+FRAME_LV.map(([name,cls],i)=>
+        '<button type="button" class="sug lvb '+cls+'" data-sdev="'+dev+'" data-lv="'+i+'" aria-pressed="'+(i===cur)+'">'+name+'</button>').join('')+'</div>'+
+      '<div class="sgchips sfx">'+btn('(코드 문제 추정)','')+'</div>';
+  }
+  // 메모에서 마지막 프레임 감소 줄 (정도 칩이 바꿀 줄)
+  function lastFrameLine(dev){
+    if(!draft)return null;const lines=draft[dev].memo.split('\n');
+    for(let i=lines.length-1;i>=0;i--){const f=frameLevel(lines[i].trim());if(f)return Object.assign(f,{i,lines});}
+    return null;
+  }
+  function setFrameLevel(dev,lv){
+    const fl=lastFrameLine(dev);if(!fl){toast('먼저 프레임 상황 문구를 고르세요');return;}
+    fl.lines[fl.i]=fl.sit+' 프레임 감소 ('+FRAME_LV[lv][0]+')';
+    draft[dev].memo=fl.lines.join('\n');
+    const t=$('memo-'+dev);if(t){t.value=draft[dev].memo;fit(t);}
+    showChipSug(dev);updateNav();
+  }
+  function showChipSug(dev){
+    const p=document.querySelector('.chipsug[data-sugfor="'+dev+'"]');if(!p)return;
+    p.innerHTML=chipSugHTML(dev);p.hidden=!p.innerHTML;
+  }
+  const typesFor=(code,dev)=>TYPES.filter(v=>!HW_TYPE[v]||(DEVICE[code]||'').includes(HW_TYPE[v])||(draft&&draft[dev].types.includes(v)));
+  function insertPhrase(dev,text,type){
+    if(!draft)return;
+    const cur=draft[dev].memo.replace(/\s+$/,'');
+    if(cur.split('\n').some(l=>l.trim()===text||l.trim().endsWith(text))){toast('이미 들어 있는 문구입니다');return;}
+    const next=text.startsWith('(')?(cur?cur+' '+text:text):(cur?cur+'\n'+text:text);
+    draft[dev].memo=next;
+    const t=$('memo-'+dev);if(t){t.value=next;fit(t);}
+    if(type&&TYPES.includes(type)&&!draft[dev].types.includes(type)){
+      draft[dev].types.push(type);
+      const ch=document.querySelector('.chip[data-dev="'+dev+'"][data-v="'+type+'"]');if(ch)ch.setAttribute('aria-pressed','true');
+    }
+    updateNav();
+  }
+
+  // 목록에서는 기기별 메모를 줄바꿈까지 전부 보여 줌
+  // 프레임 문구는 화면에서만 "상황 프레임 감소 + 정도 칩"으로 정리 (기록·입력칸은 원문 그대로)
+  // 간혹·약간 → 경미 / 꾸밈말 없음·자주·항상·점점 → 보통 / 크게·대폭·진행 어려움 → 심각 / 진행 불가
+  // 끝의 "(경미)" 같은 괄호는 편집 화면 정도 칩으로 넣은 것
+  const FRAME_RE=/^(.*?)\s*프레임\s*((?:간혹|약간|크게|대폭|자주|항상|점점)(?:\s+(?:간혹|약간|크게|대폭|자주|항상|점점))*)?\s*감소\s*(?:\((?:활동\s*)?진행\s*(어려움|불가)\)|\((경미|보통|심각|진행 불가)\))?$/;
+  const FRAME_LV=[['경미','lv1'],['보통','lv2'],['심각','lv3'],['진행 불가','lv4']];
+  function frameLevel(l){const m=FRAME_RE.exec(l);if(!m)return null;const sit=m[1].replace(/(으로|로 인해)$/,'').trim();if(!sit)return null;
+    const mod=m[2]||'',stop=m[3];
+    const lv=m[4]?FRAME_LV.findIndex(x=>x[0]===m[4]):stop==='불가'?3:(stop==='어려움'||/크게|대폭/.test(mod))?2:/간혹|약간/.test(mod)?0:1;
+    return {sit,lv};}
+  function memoLineHTML(l){const f=frameLevel(l.trim());if(!f)return esc(l);
+    return esc(f.sit)+' 프레임 감소 <span class="lv '+FRAME_LV[f.lv][1]+'">'+FRAME_LV[f.lv][0]+'</span>';}
+  function fullMemoHTML(it,dev=curDev()){
+    const d=norm(it);
+    return devOrder().filter(([k])=>d[k].memo.trim()).map(([k,name])=>
+      '<span class="memofull'+(k===dev?'':' other')+'"><span class="memodev">'+name+'</span>'+d[k].memo.trim().split('\n').map(memoLineHTML).join('\n')+'</span>').join('');
+  }
+  function firstMemo(it){
+    if(!it)return '';const d=norm(it);
+    for(const [k,,short] of DEVS){const m=d[k].memo.trim();if(m)return short+': '+m.split('\n')[0];}
+    return '';
+  }
+
+  function formHTML(c,withResolved){
+    const d=draft;const ro=mode==='readonly';
+    if(chipSugCode!==c.code){Object.keys(chipSug).forEach(k=>delete chipSug[k]);chipSugCode=c.code;}
+    const chip=(dev,v)=>'<button type="button" class="chip" data-dev="'+dev+'" data-v="'+v+'" aria-pressed="'+d[dev].types.includes(v)+'"'+(ro?' disabled':'')+'>'+v+'</button>';
+    return (HINTS[c.code]?'<div class="hintline">'+esc(HINTS[c.code])+'</div>':'')+
+      devOrder().map(([k,name])=>'<div class="devblock'+(devHas(d,k)?' has':'')+'" data-block="'+k+'">'+
+        '<div class="devhead"><span class="devname">'+name+'</span></div>'+
+        '<div class="chips">'+typesFor(c.code,k).map(v=>chip(k,v)).join('')+'</div>'+
+        (ro?'':'<div class="chipsug" data-sugfor="'+k+'"'+(chipSug[k]?'':' hidden')+'>'+chipSugHTML(k)+'</div>')+
+        '<textarea id="memo-'+k+'" data-dev="'+k+'" rows="2" aria-label="'+name+' 메모" placeholder="'+name+'에서 본 증상 (없으면 비워 두세요)"'+(ro?' readonly':'')+'>'+esc(d[k].memo)+'</textarea>'+
+      '</div>').join('')+
+      (withResolved?'<label class="check"><input type="checkbox" id="resolved"'+(d.resolved?' checked':'')+(ro?' disabled':'')+'>해결됨</label>':'');
+  }
+
+  function rowHTML(c){
+    const it=issues[c.code];const isOpen=openCode===c.code;
+    if(isOpen)ensureDraft(c.code);
+    const memo=firstMemo(it);
+    const ref=sameModuleRef(c.code);
+    let preview='';
+    if(memo)preview=fullMemoHTML(it);
+    const dev=curDev();const okHere=!issueOn(c.code,dev)&&!!checked[dev][c.code];
+    if(ref)preview+='<span class="preview same"><span class="goto" data-goto="'+ref+'">'+ref+'에서 확인'+(issueOn(ref,dev)?' · 그 코드에 문제 기록 있음':'')+' ›</span></span>';
+    if(!memo&&!ref&&!it&&HINTS[c.code])preview='<span class="preview hint">'+esc(HINTS[c.code])+'</span>';
+    const done=it&&norm(it).resolved;
+    let tags=tagsHTML(it);
+    if(okHere)tags+='<span class="tag ok">이상 없음</span>';
+    else if(ref)tags+='<span class="tag same">같은 모듈이라 넘어감</span>';
+    const dref=directRef(c.code);
+    if(dref)tags+='<span class="tag direct" title="같은 모듈을 '+dref+'에서 봤지만 따로 검수함">같은 모듈 · 직접 검수</span>';
+    const cls=issueOn(c.code,dev)?(done?' done':' issue'):okHere?' okay':ref?' same':'';
+    return '<div class="item'+cls+(c.code===cursor?' here':'')+'" data-code="'+c.code+'">'+
+      '<button type="button" class="rowbtn" aria-expanded="'+isOpen+'">'+
+        // 태그는 오른쪽 칸에 따로 두고 줄 전체의 세로 가운데에 (메모가 여러 줄이면 빈틈이 커 보여서)
+        '<span class="rowmain"><span class="line1"><span class="code">'+c.code+'</span>'+hwTags(c.code)+'<span class="ws">'+c.w+'주 '+c.st+'차시</span><span class="mod">'+esc(modLabel(MOD[c.code]))+'</span></span>'+
+        preview+'</span>'+(tags?'<span class="tags">'+tags+'</span>':'')+
+      '</button>'+(isOpen?'<div class="editor">'+formHTML(c,true)+
+        '<div class="actions">'+
+          (issues[c.code]&&mode!=='readonly'?'<button type="button" class="btn danger'+(armedClear?' armed':'')+'" data-act="clear">'+(armedClear?'정말 지울까요?':'지우기')+'</button>':'')+
+          '<button type="button" class="btn" data-act="seqFrom">여기서부터 순서대로</button>'+
+          '<button type="button" class="btn" data-act="close">닫기</button>'+
+          (mode==='readonly'?'':'<button type="button" class="btn primary" data-act="save">저장</button>')+
+        '</div></div>':'')+'</div>';
+  }
+
+  function renderList(rows){
+    const groups=[];let cur=null;
+    rows.forEach(c=>{const k=c.m+c.s+c.l;if(!cur||cur.k!==k){cur={k,c,rows:[]};groups.push(cur);}cur.rows.push(c);});
+    $('list').innerHTML=(groups.length>1?'<div class="listtools"><button type="button" class="linkbtn" data-act="collapseAll">모두 접기</button><button type="button" class="linkbtn" data-act="expandAll">모두 펴기</button></div>':'')+
+    groups.map(g=>{
+      const n=g.rows.filter(c=>issues[c.code]&&!norm(issues[c.code]).resolved).length;
+      const ck=g.rows.filter(c=>isChecked(c.code)||sameModuleRef(c.code)).length;
+      const closed=collapsed.has(g.k);
+      return '<section class="grp'+(closed?' closed':'')+'" data-k="'+g.k+'">'+
+        '<h2 class="group"><button type="button" class="gtoggle" aria-expanded="'+!closed+'"><span class="chev" aria-hidden="true"></span>'+
+          '<span>'+hoLabel(g.c.m)+' · <span class="sub '+g.c.s+'">'+SUBJ_NAME[g.c.s]+'</span> 레벨 '+g.c.l+'</span></button>'+
+          '<span class="gcount'+(n?' has':'')+'">'+(n?'문제 '+n+' · ':'')+'확인 '+ck+'/'+g.rows.length+'</span></h2>'+
+        '<div class="gbody"><div class="gbody-in"><div class="list">'+g.rows.map(rowHTML).join('')+'</div></div></div>'+
+      '</section>';
+    }).join('');
+  }
+
+  // 순서대로 진행: 한 레벨이 끝나면 같은 호의 다음 레벨, 레벨 3까지 끝나야 다음 호의 레벨 1
+  function nextScope(){
+    if(state.q.trim())return null;
+    const mi=SHOWN.indexOf(state.month);
+    if(state.level!=='ALL'&&+state.level<3){const l=+state.level+1;return {month:state.month,level:String(l),label:(state.month==='ALL'?'':hoLabel(state.month)+' ')+'레벨 '+l};}
+    if(state.month!=='ALL'&&mi>=0&&mi<SHOWN.length-1){const lv=state.level==='ALL'?'ALL':'1';return {month:SHOWN[mi+1],level:lv,label:hoLabel(SHOWN[mi+1])+(lv==='ALL'?'':' 레벨 1')};}
+    return null;
+  }
+  function applyScope(ns){
+    state.month=ns.month;state.level=ns.level;atEnd=false;keepFilters();syncFilters();
+    const r=visible();if(r.length){cursor=r[0].code;ls.set(curKey(),cursor);}draft=null;
+  }
+
+  function renderSeq(rows){
+    if(atEnd){
+      const ns=nextScope();
+      $('list').innerHTML='<div class="done-card"><p><strong>이 조건의 '+rows.length+'개를 끝까지 봤습니다.</strong></p>'+
+        '<p class="ws">문제 기록 '+rows.filter(c=>issues[c.code]).length+'건</p>'+
+        '<div class="actions" style="justify-content:center">'+
+          '<button type="button" class="btn" data-act="restart">처음으로</button>'+
+          (ns?'<button type="button" class="btn primary" data-act="nextScope">다음: '+esc(ns.label)+'</button>':'')+
+        '</div></div>';
+      $('seqnav').hidden=false;$('prevBtn').disabled=false;$('nextBtn').disabled=true;$('nextBtn').textContent='끝';$('nextBtn').className='btn primary next';
+      return;
+    }
+    let i=rows.findIndex(c=>c.code===cursor);
+    if(i<0){i=0;cursor=rows[0].code;ls.set(curKey(),cursor);}
+    const c=rows[i];ensureDraft(c.code);
+    const saved=!!issues[c.code];
+    const ref=sameModuleRef(c.code);
+    $('list').innerHTML='<section class="seq">'+
+      '<div class="seqhead"><span>'+hoLabel(c.m)+' · <span class="sub '+c.s+'">'+SUBJ_NAME[c.s]+'</span> 레벨 '+c.l+'</span><span>'+(i+1)+' / '+rows.length+'</span></div>'+
+      '<div class="bar"><i style="width:'+((i+1)/rows.length*100).toFixed(1)+'%"></i></div>'+
+      '<div class="codecard"><div class="bigcode">'+c.code+hwTags(c.code)+'</div>'+
+        '<div class="codemeta"><span>'+c.w+'주 '+c.st+'차시</span><span class="mod">모듈 '+esc(modLabel(MOD[c.code]))+'</span>'+
+          (directRef(c.code)?'<span class="tag direct">같은 모듈 · 직접 검수</span>':'')+'</div>'+
+        devStatHTML(c.code)+'</div>'+
+      (ref?'<div class="sameline">같은 모듈 — '+esc(modLabel(MOD[c.code]))+' 모듈은 <button type="button" class="goto" data-goto="'+ref+'">'+ref+'</button>에서 확인했습니다'+(issueOn(ref,curDev())?' (그 코드에 문제 기록 있음)':'')+'. 보고 넘기면 이상 없음으로 기록됩니다.</div>':'')+
+      '<div class="editor">'+formHTML(c,false)+'</div>'+
+    '</section>';
+    $('seqnav').hidden=false;$('prevBtn').disabled=i===0;$('nextBtn').disabled=false;
+    updateNav();
+  }
+
+  // 순서대로 카드에 두 기기 상태를 나란히 (지금 기기는 굵게)
+  function devStatHTML(code){
+    return '<div class="devstat">'+DEVS.map(([k,name])=>{
+      const st=issueOn(code,k)?['bad','문제 기록']:checked[k][code]?['ok','이상 없음']:sameModuleRef(code,k)?['same','같은 모듈']:['','아직'];
+      return '<span class="'+st[0]+(k===curDev()?' cur':'')+'">'+name+' · '+st[1]+'</span>';
+    }).join('')+'</div>';
+  }
+
+  function updateNav(){
+    if(state.view!=='seq'||atEnd)return;
+    const b=$('nextBtn');
+    let label='이상 없음 · 다음 ▶',save=false;
+    if(saving){label='저장 중';}
+    else if(dirty()){save=true;label=isEmpty(draft)?'기록 지우고 다음 ▶':'저장하고 다음 ▶';}
+    else if(draft&&issues[draft.code])label='다음 ▶';
+    b.textContent=label;b.className='btn primary next'+(save?' save':'');b.disabled=saving;
+    document.querySelectorAll('.devblock').forEach(el=>el.classList.toggle('has',!!draft&&devHas(draft,el.dataset.block)));
+  }
+
+  /* ---------- 공통 현상 ---------- */
+  const gblank=()=>({id:null,devices:[],types:[],scope:'',memo:'',resolved:false});
+  function fmtDate(s){const d=new Date(s);if(isNaN(d))return '';const p=n=>String(n).padStart(2,'0');return (d.getMonth()+1)+'/'+d.getDate()+' '+p(d.getHours())+':'+p(d.getMinutes());}
+  function gcardHTML(g){
+    const ro=mode==='readonly';let tags='';
+    if(g.resolved)tags+='<span class="tag ok">해결</span>';
+    (g.devices||[]).forEach(v=>tags+='<span class="tag dev">'+esc(v)+'</span>');
+    fixTypes(g.types||[]).forEach(v=>tags+='<span class="tag'+(g.resolved?' ok':'')+'">'+esc(v)+'</span>');
+    return '<article class="gcard'+(g.resolved?' done':'')+'" data-id="'+esc(g.id)+'">'+
+      (tags?'<div class="gmeta">'+tags+'</div>':'')+
+      (g.scope?'<div class="gscope">범위: '+esc(g.scope)+'</div>':'')+
+      (g.memo?'<p class="gmemo">'+g.memo.split('\n').map(memoLineHTML).join('\n')+'</p>':'')+
+      '<div class="gdate">'+fmtDate(g.updatedAt)+'</div>'+
+      (ro?'':'<div class="actions"><button type="button" class="btn" data-gact="edit">고치기</button>'+
+        '<button type="button" class="btn" data-gact="toggle">'+(g.resolved?'해결 취소':'해결됨')+'</button>'+
+        '<button type="button" class="btn danger'+(gArmed===g.id?' armed':'')+'" data-gact="del">'+(gArmed===g.id?'정말 지울까요?':'지우기')+'</button></div>')+
+    '</article>';
+  }
+  function renderGeneral(){
+    if(!gdraft)gdraft=gblank();
+    const d=gdraft;const ro=mode==='readonly';
+    const chip=(grp,v,cls)=>'<button type="button" class="chip'+cls+'" data-g="'+grp+'" data-v="'+v+'" aria-pressed="'+d[grp].includes(v)+'"'+(ro?' disabled':'')+'>'+v+'</button>';
+    const list=Object.entries(generals).map(([id,g])=>Object.assign({},g,{id}))
+      .sort((a,b)=>(a.resolved===b.resolved?0:a.resolved?1:-1)||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+    $('list').innerHTML=(ro?'':'<section class="gform">'+
+      '<h2 class="gtitle">'+(d.id?'공통 현상 고치기':'공통 현상 추가')+'</h2>'+
+      '<p class="gintro">학습코드 하나가 아니라 여러 액티비티에서 반복되거나, 앱·기기 자체에서 보이는 현상을 적습니다.</p>'+
+      '<div class="field"><span class="flabel">기기</span><div class="chips">'+DEVS.map(([,name])=>chip('devices',name,' dev')).join('')+'</div></div>'+
+      '<div class="field"><span class="flabel">유형</span><div class="chips">'+TYPES.map(v=>chip('types',v,'')).join('')+'</div></div>'+
+      '<div class="field"><label class="flabel" for="gscope">범위</label><input id="gscope" type="text" autocomplete="off" placeholder="예: 전체, 3호 수학, 영상 있는 액티비티" value="'+esc(d.scope)+'"></div>'+
+      '<div class="field"><label class="flabel" for="gmemo">내용</label><textarea id="gmemo" rows="3" placeholder="증상과 재현 방법 (예: 앱에서 액티비티를 열 때마다 첫 소리가 1초 늦게 나옴)">'+esc(d.memo)+'</textarea></div>'+
+      (d.id?'<label class="check"><input type="checkbox" id="gresolved"'+(d.resolved?' checked':'')+'>해결됨</label>':'')+
+      '<div class="actions">'+(d.id?'<button type="button" class="btn" data-gact="cancel">취소</button>':'')+
+        '<button type="button" class="btn primary" data-gact="gsave"'+(gsaving?' disabled':'')+'>'+(d.id?'고친 내용 저장':'추가')+'</button></div>'+
+    '</section>')+
+    '<div class="glist">'+(list.length?list.map(gcardHTML).join(''):'<p class="empty">아직 기록된 공통 현상이 없습니다.'+(ro?'':' 위에서 추가하세요.')+'</p>')+'</div>';
+  }
+  async function gwrite(id,body){
+    if(mode==='loading'){toast('저장소에 연결하는 중입니다. 잠시 후 다시 눌러 주세요.');return false;}
+    if(mode==='readonly'){toast('보기 전용이라 저장할 수 없습니다.');return false;}
+    try{
+      if(mode==='db'){
+        const ref=gcol.doc(id);
+        await backup('general',id,generals[id]);
+        const run=()=>body?ref.set(body):ref.delete();
+        try{await run();}catch(err){
+          if(err&&err.code==='unavailable'){await new Promise(r=>setTimeout(r,500+Math.random()*700));await run();}else throw err;
+        }
+      }
+      if(body)generals[id]=body;else delete generals[id];
+      if(mode==='local')ls.set('qa.general',generals);
+      return true;
+    }catch(err){writeError(err);return false;}
+  }
+  async function saveGeneral(){
+    if(gsaving||!gdraft)return;
+    const d=gdraft;
+    if(!d.memo.trim()&&!d.types.length){toast('내용을 적거나 유형을 하나 이상 고르세요.');return;}
+    const id=d.id||('g'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+    const prev=generals[id];const now=new Date().toISOString();
+    const body={devices:d.devices.slice(),types:d.types.slice(),scope:d.scope.trim(),memo:d.memo.trim(),resolved:!!d.resolved,createdAt:(prev&&prev.createdAt)||now,updatedAt:now};
+    gsaving=true;
+    const ok=await gwrite(id,body);
+    gsaving=false;
+    if(ok){gdraft=gblank();toast(d.id?'고친 내용을 저장했습니다':'공통 현상을 추가했습니다');}
+    render();
+  }
+  async function handleGact(btn){
+    const a=btn.dataset.gact;
+    if(a==='gsave'){saveGeneral();return;}
+    if(a==='cancel'){gdraft=gblank();render();return;}
+    const card=btn.closest('.gcard');if(!card)return;
+    const id=card.dataset.id;const g=generals[id];if(!g)return;
+    if(a==='edit'){gdraft={id,devices:(g.devices||[]).slice(),types:fixTypes(g.types||[]),scope:g.scope||'',memo:g.memo||'',resolved:!!g.resolved};gArmed=null;render();window.scrollTo(0,0);}
+    else if(a==='toggle'){if(await gwrite(id,Object.assign({},g,{resolved:!g.resolved,updatedAt:new Date().toISOString()})))render();}
+    else if(a==='del'){
+      if(gArmed!==id){gArmed=id;btn.classList.add('armed');btn.textContent='정말 지울까요?';return;}
+      gArmed=null;if(await gwrite(id,null)){if(gdraft&&gdraft.id===id)gdraft=gblank();toast('공통 현상을 지웠습니다');}render();
+    }
+  }
+
+  // 메모 칸은 내용만큼 늘어남 (칸 안 스크롤 대신)
+  function fit(t){t.style.height='auto';t.style.height=(t.scrollHeight+2)+'px';}
+  function fitAll(){document.querySelectorAll('#list textarea').forEach(fit);}
+  window.addEventListener('resize',fitAll);
+
+  function render(){
+    summary();
+    $('seqnav').hidden=true;
+    if(state.view==='general'){renderGeneral();fitAll();return;}
+    const rows=visible();
+    if(!rows.length){
+      $('list').innerHTML='<p class="empty">'+(state.only?'이 조건에는 기록된 문제가 없습니다. 위 필터를 바꾸거나 “문제만”을 끄세요.':'맞는 학습코드가 없습니다. 예: KOL1M01W1S1')+'</p>';
+      return;
+    }
+    state.view==='seq'?renderSeq(rows):renderList(rows);
+    fitAll();
+  }
+
+  function typing(){const a=document.activeElement;return !!a&&(a.tagName==='TEXTAREA'||a.id==='gscope');}
+  function rerenderSoon(){
+    // 메모를 쓰는 중이면 입력을 지우지 않도록 기다렸다가 다시 그립니다.
+    if(typing()){pendingRender=true;summary();return;}
+    render();
+  }
+
+  /* ---------- sequential navigation ---------- */
+  async function go(delta){
+    if(saving)return;
+    const rows=visible();
+    if(atEnd){if(delta<0){atEnd=false;cursor=rows[rows.length-1].code;draft=null;render();}return;}
+    const i=rows.findIndex(c=>c.code===cursor);
+    const wasDirty=dirty();
+    if(wasDirty&&!(await save(cursor)))return;
+    // 같은 모듈 코드도 보고 넘기면 직접 확인(이상 없음)으로 기록
+    if(delta>0){
+      const dev=curDev(),had=isChecked(cursor);
+      markChecked(cursor);
+      // 넘길 때 무엇으로 체크됐는지 알림 (저장했으면 저장 알림이 대신 뜸)
+      if(!wasDirty)toast(cursor+' · '+devName(dev)+' '+(issueOn(cursor,dev)?'문제 기록 있음':had?'이미 확인됨':'이상 없음 ✓'));
+    }
+    const fresh=visible(); // "문제만"이면 저장으로 목록이 바뀔 수 있음
+    let j=fresh.findIndex(c=>c.code===cursor);
+    if(j<0)j=delta>0?i-1:i;
+    j+=delta;
+    if(j<0){render();return;}
+    if(j>=fresh.length){
+      const ns=nextScope();
+      if(ns){const y=window.scrollY;applyScope(ns);toast('다음: '+ns.label);render();window.scrollTo(0,y);return;}
+      atEnd=true;draft=null;render();window.scrollTo(0,0);return;
+    }
+    cursor=fresh[j].code;ls.set(curKey(),cursor);draft=null;pendingRender=false;
+    // 다음·이전으로 넘겨도 보던 스크롤 위치 그대로 (맨 위로 올리지 않음)
+    const y=window.scrollY;render();window.scrollTo(0,y);
+  }
+  $('prevBtn').addEventListener('click',()=>go(-1));
+  $('nextBtn').addEventListener('click',()=>go(1));
+
+  // 다른 학습코드로 이동해서 그 코드의 기록을 바로 펼침 (순서대로 위치는 그대로 둠)
+  async function openCodeInList(code,fromCode){
+    const c=BY_CODE[code];if(!c)return;
+    if(dirty()&&!(await save(draft.code)))return;
+    // 돌아갈 자리 기억 (보던 화면·필터·스크롤)
+    const from=state.view==='seq'?cursor:fromCode||openCode;
+    backStack.push({view:state.view,subj:state.subj,month:state.month,level:state.level,only:state.only,q:state.q,cursor,openCode,y:window.scrollY,from,to:code});
+    state=Object.assign(state,{view:'list',subj:c.s,month:c.m,level:String(c.l),only:false,q:''});$('q').value='';
+    collapsed.delete(c.m+c.s+c.l);ls.set('qa.collapsed',[...collapsed]);
+    atEnd=false;keepFilters();syncFilters();
+    openCode=code;draft=null;ensureDraft(code);render();
+    const el=document.querySelector('.item[data-code="'+code+'"]');
+    if(el){el.scrollIntoView({block:'center'});el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),1200);}
+    updateBack();
+  }
+  const backStack=[];
+  function updateBack(){
+    const b=$('backBtn');const t=backStack[backStack.length-1];
+    b.hidden=!t;if(t)b.innerHTML='◀ 돌아가기'+(t.from?' <span class="bcode">'+esc(t.from)+'</span>':'');
+  }
+  async function goBack(){
+    const t=backStack.pop();if(!t){updateBack();return;}
+    if(dirty()&&!(await save(draft.code))){backStack.push(t);return;}
+    Object.assign(state,{view:t.view,subj:t.subj,month:t.month,level:t.level,only:t.only,q:t.q});$('q').value=t.q;
+    cursor=t.cursor;ls.set(curKey(),cursor);openCode=t.openCode;draft=null;atEnd=false;
+    if(openCode)ensureDraft(openCode);
+    keepFilters();syncFilters();render();updateBack();
+    if(t.view==='seq'){window.scrollTo(0,0);return;}
+    window.scrollTo(0,t.y);
+    const el=t.from&&document.querySelector('.item[data-code="'+t.from+'"]');
+    if(el){el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),1200);}
+  }
+  $('backBtn').addEventListener('click',goBack);
+
+  /* ---------- list editing ---------- */
+  function openEditor(code){
+    if(openCode===code){openCode=null;draft=null;render();return;}
+    openCode=code;draft=null;ensureDraft(code);
+    render();
+    const el=document.querySelector('.item[data-code="'+code+'"]');
+    if(el)el.scrollIntoView({block:'nearest'});
+  }
+
+  $('list').addEventListener('click',async e=>{
+    const sug=e.target.closest('.sug');
+    if(sug){if(sug.dataset.lv!=null)setFrameLevel(sug.dataset.sdev,+sug.dataset.lv);else{insertPhrase(sug.dataset.sdev,sug.dataset.text,sug.dataset.stype);showChipSug(sug.dataset.sdev);}return;}
+    const gchip=e.target.closest('[data-g]');
+    if(gchip&&gdraft){
+      const arr=gdraft[gchip.dataset.g];const v=gchip.dataset.v;const i=arr.indexOf(v);
+      i>=0?arr.splice(i,1):arr.push(v);
+      gchip.setAttribute('aria-pressed',i<0);return;
+    }
+    const gact=e.target.closest('[data-gact]');
+    if(gact){handleGact(gact);return;}
+    const go2=e.target.closest('[data-goto]');
+    if(go2){e.preventDefault();const it=go2.closest('.item');openCodeInList(go2.dataset.goto,it&&it.dataset.code);return;}
+    const gt=e.target.closest('.gtoggle');
+    if(gt){const sec=gt.closest('.grp');setCollapsed(sec,!sec.classList.contains('closed'));ls.set('qa.collapsed',[...collapsed]);return;}
+    const all=e.target.closest('[data-act="collapseAll"],[data-act="expandAll"]');
+    if(all){const close=all.dataset.act==='collapseAll';document.querySelectorAll('.grp').forEach(s=>setCollapsed(s,close));ls.set('qa.collapsed',[...collapsed]);return;}
+    const chip=e.target.closest('.chip');
+    if(chip&&draft){
+      const arr=draft[chip.dataset.dev].types;const v=chip.dataset.v;const i=arr.indexOf(v);
+      i>=0?arr.splice(i,1):arr.push(v);
+      chip.setAttribute('aria-pressed',i<0);
+      // 켠 칩의 문구를 밑에 띄움. 띄운 칩을 끄면 남은 켠 칩 문구로, 없으면 닫음
+      const dev=chip.dataset.dev;
+      if(i<0)chipSug[dev]=v;else if(chipSug[dev]===v){const o=arr.filter(x=>PHRASES[x]).pop();if(o)chipSug[dev]=o;else delete chipSug[dev];}
+      showChipSug(dev);updateNav();return;
+    }
+    const act=e.target.closest('[data-act]');
+    if(act){
+      const a=act.dataset.act;
+      if(a==='restart'){atEnd=false;const r=visible();cursor=r[0].code;ls.set(curKey(),cursor);draft=null;render();return;}
+      if(a==='nextScope'){const ns=nextScope();if(ns)applyScope(ns);render();window.scrollTo(0,0);return;}
+      const item=act.closest('.item');if(!item)return;const code=item.dataset.code;
+      if(a==='close'){openCode=null;draft=null;render();}
+      else if(a==='save'){if(await save(code)){markChecked(code);cursor=code;ls.set(curKey(),cursor);openCode=null;draft=null;render();}}
+      else if(a==='seqFrom'){if(dirty()&&!(await save(code)))return;cursor=code;ls.set(curKey(),cursor);openCode=null;draft=null;state.view='seq';atEnd=false;keepFilters();syncFilters();render();window.scrollTo(0,0);}
+      else if(a==='clear'){
+        if(!armedClear){armedClear=true;act.classList.add('armed');act.textContent='정말 지울까요?';return;}
+        draft=Object.assign(blank(),{code});if(await save(code)){openCode=null;draft=null;render();}
+      }
+      return;
+    }
+    const row=e.target.closest('.rowbtn');
+    if(row){
+      if(dirty()&&draft.code!==row.closest('.item').dataset.code&&!(await save(draft.code)))return;
+      openEditor(row.closest('.item').dataset.code);
+    }
+  });
+  $('list').addEventListener('input',e=>{
+    if(e.target.tagName==='TEXTAREA')fit(e.target);
+    if(gdraft&&e.target.id==='gmemo'){gdraft.memo=e.target.value;return;}
+    if(gdraft&&e.target.id==='gscope'){gdraft.scope=e.target.value;return;}
+    if(!draft)return;const dev=e.target.dataset&&e.target.dataset.dev;
+    if(e.target.tagName==='TEXTAREA'&&dev){draft[dev].memo=e.target.value;updateNav();}
+  });
+  $('list').addEventListener('change',e=>{
+    if(draft&&e.target.id==='resolved')draft.resolved=e.target.checked;
+    if(gdraft&&e.target.id==='gresolved')gdraft.resolved=e.target.checked;
+  });
+  $('list').addEventListener('focusout',e=>{
+    if((e.target.tagName==='TEXTAREA'||e.target.id==='gscope')&&pendingRender){
+      setTimeout(()=>{if(typing())return;pendingRender=false;if(draft&&!dirty())draft=null;render();},0);
+    }
+  });
+
+  async function save(code){
+    if(saving||!draft)return false;
+    if(mode==='loading'){toast('저장소에 연결하는 중입니다. 잠시 후 다시 눌러 주세요.');return false;}
+    if(mode==='readonly'){toast('보기 전용이라 저장할 수 없습니다.');return false;}
+    const d=draft;const empty=isEmpty(d);
+    const body={code,updatedAt:new Date().toISOString(),resolved:empty?false:!!d.resolved};
+    DEVS.forEach(([k])=>body[k]={types:d[k].types.slice(),memo:d[k].memo.trim()});
+    saving=true;updateNav();
+    try{
+      if(mode==='db'){
+        const ref=col.doc(code);
+        await backup('issue',code,issues[code]);
+        const run=()=>empty?ref.delete():ref.set(body);
+        try{await run();}catch(err){
+          if(err&&err.code==='unavailable'){await new Promise(r=>setTimeout(r,500+Math.random()*700));await run();}else throw err;
+        }
+      }
+      if(empty)delete issues[code];else issues[code]=body;
+      if(mode==='local')ls.set('qa.issues',issues);
+      saving=false;
+      toast(empty?code+' 기록을 지웠습니다':code+' 저장했습니다');
+      return true;
+    }catch(err){
+      saving=false;
+      writeError(err);
+      updateNav();
+      return false;
+    }
+  }
+  function writeError(err){
+    const c=err&&err.code;
+    if(c==='invalid_argument'){mode='readonly';toast('저장하지 못했습니다. 다시 눌러 주세요.');render();}
+    else if(c==='quota_exceeded')toast('저장 공간이 가득 찼습니다. 해결된 기록을 지운 뒤 다시 저장하세요.');
+    else toast('저장하지 못했습니다. 연결을 확인하고 다시 눌러 주세요.');
+  }
+
+  /* ---------- messages ---------- */
+  let toastTimer=null;
+  function toast(msg){const t=$('toast');t.textContent=msg;t.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>{t.hidden=true;},1800);}
+  function banner(msg){const b=$('banner');if(!msg){b.hidden=true;return;}b.textContent=msg;b.hidden=false;}
+
+  /* ---------- storage ---------- */
+  // build/make.js 가 이 자리에 build/report.js(보기 모드)와 build/tail.js(저장소·전환)를 넣는다
+  init();
+})();
+</script>

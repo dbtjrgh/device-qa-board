@@ -1,0 +1,14 @@
+name = "device-qa-board"
+main = "src/worker.js"
+compatibility_date = "2026-10-01"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "device-qa-board"
+# npx wrangler d1 create device-qa-board 로 만든 id 로 바꾼다 (로컬 실행은 이대로 된다)
+database_id = "00000000-0000-0000-0000-000000000000"
